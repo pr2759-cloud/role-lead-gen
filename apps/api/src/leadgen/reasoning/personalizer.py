@@ -27,5 +27,5 @@ def draft_opener(
         kind="draft",
         prompt_version=draft_v1.PROMPT_VERSION,
         lead_id=lead_id,
-        max_tokens=400,
+        max_tokens=600,
     )

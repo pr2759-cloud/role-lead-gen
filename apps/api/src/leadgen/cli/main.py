@@ -85,14 +85,29 @@ def run(
         results.append(result)
 
         if result.error:
-            console.print(f"  [red]✗ failed: {result.error}[/red]\n")
+            console.print(f"  [red]✗ error: {result.error}[/red]\n")
             continue
+
         if not result.icp_match or not result.icp_match.is_match:
-            console.print(f"  [yellow]✗ disqualified at ICP[/yellow]\n")
+            icp = result.icp_match
+            console.print(f"  [yellow]✗ disqualified[/yellow] — {icp.reasoning if icp else 'no result'}")
+            if icp and icp.miss_signals:
+                for m in icp.miss_signals:
+                    console.print(f"    [dim]· {m}[/dim]")
+            console.print(f"  [dim]cost: ${result.total_cost_usd:.4f}[/dim]\n")
             continue
+
         assert result.score is not None and result.draft is not None
-        console.print(f"  [green]✓[/green] scored {result.score.composite}/100 — {result.score.tier}")
-        console.print(f"  [green]✓[/green] drafted ({len(result.draft.body)} chars)")
+        console.print(f"  [green]✓ ICP match[/green] — {result.icp_match.reasoning}")
+        if result.icp_match.fit_signals:
+            for s in result.icp_match.fit_signals:
+                console.print(f"    [dim]· {s}[/dim]")
+        console.print(f"  [green]✓ scored {result.score.composite}/100[/green] — {result.score.tier}")
+        console.print(f"  [green]✓ draft ready[/green]")
+        console.print(f"  [bold]Subject:[/bold] {result.draft.subject}")
+        console.print(f"  [bold]Body:[/bold]")
+        for line in result.draft.body.strip().splitlines():
+            console.print(f"    {line}")
         console.print(f"  [dim]cost: ${result.total_cost_usd:.4f}[/dim]\n")
 
     db.close()
