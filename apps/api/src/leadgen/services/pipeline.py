@@ -10,18 +10,18 @@ from sqlalchemy.orm import Session
 from leadgen.schemas.profile import Profile
 from leadgen.schemas.lifecycle import LifecycleState
 from leadgen.schemas.icp import IcpMatchResult
-from leadgen.schemas.score import LeadScore
+from leadgen.schemas.score import LeadScore, ScoreDimension
 from leadgen.schemas.draft import DraftMessage
+from leadgen.schemas.analysis import CompanyAnalysis
 from leadgen.reasoning.llm import LLMClient
-from leadgen.reasoning.icp_matcher import match_icp
-from leadgen.reasoning.scorer import score_lead
+from leadgen.reasoning.prompts import analyze_v1, draft_v1
+from leadgen.reasoning.scorer import _summarize_candidate
 from leadgen.reasoning.personalizer import draft_opener
 from leadgen.enrichment.llm_research import research_company
 from leadgen.repositories.lead_repo import LeadRepo
 
-# Dossier is truncated before passing to reasoning steps to stay within rate limits.
-# Full dossier is stored in DB; truncated version is only used for LLM calls.
-DOSSIER_TOKEN_BUDGET = 1200  # ~chars, rough estimate
+# Dossier chars passed to reasoning calls — keeps prompts under ~2k tokens.
+DOSSIER_CHAR_LIMIT = 2000
 
 log = structlog.get_logger()
 
@@ -51,47 +51,73 @@ class Pipeline:
         total_cost = 0.0
 
         try:
-            # Stage 1: enrich — commit immediately so enrichment is never lost on retry
-            enrichment, research_interaction = research_company(name=name, domain=domain)
-            research_interaction["lead_id"] = lead.id
-            self.repo.save_interaction(research_interaction)
-            self.repo.update_enrichment(company, enrichment.dossier)
+            # Stage 1: enrich — skip if company already has a dossier in DB
+            if company.enrichment and company.enrichment.get("dossier"):
+                dossier = company.enrichment["dossier"]
+                log.info("pipeline.enrich_cached", company=name)
+            else:
+                enrichment, research_interaction = research_company(name=name, domain=domain)
+                research_interaction["lead_id"] = lead.id
+                self.repo.save_interaction(research_interaction)
+                self.repo.update_enrichment(company, enrichment.dossier)
+                total_cost += enrichment.cost_usd
+                dossier = enrichment.dossier
+                self.db.commit()
+
             self.repo.update_state(lead, LifecycleState.ENRICHED)
-            total_cost += enrichment.cost_usd
             self.db.commit()
 
-            # Truncate dossier for reasoning LLM calls to stay within rate limits.
-            # Full dossier is already persisted in DB via update_enrichment above.
-            dossier_for_llm = enrichment.dossier[:4800]
+            # Truncate for LLM calls — full dossier stays in DB
+            dossier_for_llm = dossier[:DOSSIER_CHAR_LIMIT]
 
-            # Stage 2: ICP match
-            icp_result, icp_interaction = match_icp(
-                profile=self.profile, company_dossier=dossier_for_llm, llm=self.llm, lead_id=lead.id,
+            # Stage 2: ICP match + score in one haiku call
+            system = analyze_v1.SYSTEM.format(candidate_name=self.profile.candidate.name)
+            user = analyze_v1.build_user_prompt(
+                icp_dict=self.profile.icp.model_dump(),
+                candidate_summary=_summarize_candidate(self.profile),
+                company_dossier=dossier_for_llm,
             )
-            self.repo.save_interaction(icp_interaction)
-            self.repo.update_icp_match(lead, icp_result.model_dump(mode="json"))
-            total_cost += icp_interaction["cost_usd"]
+            analysis, analysis_interaction = self.llm.structured_fast(
+                system=system,
+                user=user,
+                output_schema=CompanyAnalysis,
+                kind="analyze",
+                prompt_version=analyze_v1.PROMPT_VERSION,
+                lead_id=lead.id,
+                max_tokens=800,
+            )
+            self.repo.save_interaction(analysis_interaction)
+            total_cost += analysis_interaction["cost_usd"]
 
-            if not icp_result.is_match:
+            # Convert CompanyAnalysis → IcpMatchResult + LeadScore for DB + result
+            icp_result = IcpMatchResult(
+                reasoning=analysis.reasoning,
+                is_match=analysis.is_match,
+                fit_signals=analysis.fit_signals,
+                miss_signals=analysis.miss_signals,
+                confidence=0.8,
+            )
+            self.repo.update_icp_match(lead, icp_result.model_dump(mode="json"))
+
+            if not analysis.is_match:
                 self.repo.update_state(lead, LifecycleState.REJECTED)
                 self.db.commit()
                 log.info("pipeline.rejected_at_icp", company=name, cost=total_cost)
                 return LeadResult(company.name, icp_result, None, None, total_cost)
 
-            # Stage 3: score
-            score, score_interaction = score_lead(
-                profile=self.profile,
-                company_dossier=dossier_for_llm,
-                icp_match=icp_result,
-                llm=self.llm,
-                lead_id=lead.id,
+            score = LeadScore(
+                reasoning=analysis.reasoning,
+                dimensions=[
+                    ScoreDimension(name=d.name, score=d.score, weight=d.weight, reasoning="")
+                    for d in analysis.dimensions
+                ],
+                composite=analysis.composite,
+                tier=analysis.tier,
             )
-            self.repo.save_interaction(score_interaction)
             self.repo.update_score(lead, score.composite, score.reasoning)
             self.repo.update_state(lead, LifecycleState.SCORED)
-            total_cost += score_interaction["cost_usd"]
 
-            # Stage 4: draft
+            # Stage 3: draft (sonnet — quality matters here)
             draft, draft_interaction = draft_opener(
                 profile=self.profile, company_dossier=dossier_for_llm, llm=self.llm, lead_id=lead.id,
             )

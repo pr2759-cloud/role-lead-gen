@@ -13,26 +13,18 @@ from leadgen.observability.llm_metering import calculate_cost
 
 RESEARCH_PROMPT_VERSION = "research_v1"
 
-RESEARCH_SYSTEM = """You are a research analyst. Given a company name and optional domain, produce a concise dossier suitable for outreach personalization.
+RESEARCH_SYSTEM = """You are a research analyst. Search for a company and write a SHORT dossier for outreach personalization.
 
-Use web_search to find current information. Structure the dossier with these sections (skip any you can't find evidence for):
+Run 1-2 web searches maximum. Write under 300 words total. Be specific, no filler.
 
-## What they do
-1-2 sentences on product and target customer.
+Cover only what you find evidence for:
+- What they do (1 sentence)
+- Stage/funding (latest round + amount)
+- Open roles matching: FDE, GTM Engineer, Solutions Engineer, Applied AI Engineer, Customer Engineer
+- One specific recent hook (launch, blog post, or news from last 90 days — quote it)
+- One tech/culture signal
 
-## Stage and traction
-Latest funding round, headcount range, notable customers. Cite sources where possible.
-
-## Hiring signals
-Currently open roles, especially for FDE, GTM Engineer, Solutions Engineer, Applied AI Engineer, Customer Engineer. Quote the role title.
-
-## Recent moves
-Launches, integrations, blog posts, or public statements from the last 90 days that could become a specific opener hook.
-
-## Technical and culture signals
-Engineering blog presence, tech stack mentions, design-doc culture, or notable technical decisions.
-
-Be specific. Quote exact phrases where they would make a strong opener. If you can't find information for a section, write "No public signal found" — do NOT invent facts."""
+If a section has no evidence, skip it entirely. No invented facts."""
 
 
 class EnrichmentResult(BaseModel):
@@ -51,7 +43,7 @@ class EnrichmentResult(BaseModel):
 def research_company(*, name: str, domain: str | None = None) -> tuple[EnrichmentResult, dict]:
     """Run Claude with web_search to produce a company dossier."""
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    model = "claude-sonnet-4-6"
+    model = "claude-haiku-4-5-20251001"
 
     user_msg = f"Company: {name}"
     if domain:
@@ -61,9 +53,9 @@ def research_company(*, name: str, domain: str | None = None) -> tuple[Enrichmen
     start = time.perf_counter()
     response = client.messages.create(
         model=model,
-        max_tokens=1500,
+        max_tokens=600,
         system=RESEARCH_SYSTEM,
-        tools=[{"type": "web_search_20250305", "name": "web_search"}],
+        tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 2}],
         messages=[{"role": "user", "content": user_msg}],
     )
     latency_ms = int((time.perf_counter() - start) * 1000)

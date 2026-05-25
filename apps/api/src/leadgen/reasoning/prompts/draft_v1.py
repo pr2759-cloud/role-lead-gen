@@ -15,17 +15,15 @@ NEVER use generic openers like "I came across", "I was impressed", "love what yo
 
 
 def build_user_prompt(*, candidate_summary: str, tone_dict: dict, example_lines: list[str], company_dossier: str) -> str:
-    examples_block = "\n".join(f"- {line}" for line in example_lines)
-    return f"""Candidate summary:
-{candidate_summary}
+    do_rules = "\n".join(f"- {r}" for r in tone_dict.get("do", []))
+    dont_rules = "\n".join(f"- {r}" for r in tone_dict.get("dont", []))
+    examples_block = "\n".join(f"- {line}" for line in example_lines[:2])  # max 2 examples
+    return f"""Candidate: {candidate_summary}
 
-Tone guidance:
-{tone_dict}
+DO: {do_rules}
+DON'T: {dont_rules}
+Examples: {examples_block}
 
-Example openers in this voice:
-{examples_block}
+Dossier: {company_dossier}
 
-Company dossier:
-{company_dossier}
-
-Draft the opener."""
+Draft opener."""

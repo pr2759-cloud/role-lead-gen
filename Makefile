@@ -10,10 +10,10 @@ db-down:
 	docker compose down
 
 migrate:
-	cd apps/api && uv run alembic upgrade head
+	(cd apps/api && uv run alembic upgrade head)
 
 migrate-new:
-	cd apps/api && uv run alembic revision --autogenerate -m "$(name)"
+	(cd apps/api && uv run alembic revision --autogenerate -m "$(name)")
 
 test:
 	uv run pytest apps/api/tests -v

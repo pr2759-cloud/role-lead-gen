@@ -4,7 +4,6 @@ Every reasoning module calls through here — single place for cost, latency,
 and prompt versioning instrumentation.
 """
 import time
-import json
 from typing import TypeVar, Type
 from uuid import UUID
 import anthropic
@@ -17,6 +16,7 @@ from leadgen.observability.llm_metering import calculate_cost
 T = TypeVar("T", bound=BaseModel)
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
+FAST_MODEL = "claude-haiku-4-5-20251001"
 
 
 class LLMClient:
@@ -45,11 +45,10 @@ class LLMClient:
         Returns (parsed_output, interaction_record). Caller persists the
         interaction_record to Postgres.
         """
-        schema_json = json.dumps(output_schema.model_json_schema(), indent=2)
+        fields = list(output_schema.model_fields.keys())
         system_with_schema = (
             f"{system}\n\n"
-            f"Respond with ONLY a valid JSON object matching this schema. "
-            f"No preamble, no markdown fences, just JSON:\n\n{schema_json}"
+            f"Reply with ONLY a JSON object with these keys: {fields}. No markdown, no extra text."
         )
 
         start = time.perf_counter()
@@ -79,3 +78,30 @@ class LLMClient:
             "response": parsed.model_dump(mode="json"),
         }
         return parsed, interaction
+
+    def structured_fast(
+        self,
+        *,
+        system: str,
+        user: str,
+        output_schema: Type[T],
+        kind: str,
+        prompt_version: str,
+        lead_id: UUID | None = None,
+        max_tokens: int = 512,
+    ) -> tuple[T, dict]:
+        """Same as structured() but forces haiku for cheap analysis calls."""
+        original = self.model
+        self.model = FAST_MODEL
+        try:
+            return self.structured(
+                system=system,
+                user=user,
+                output_schema=output_schema,
+                kind=kind,
+                prompt_version=prompt_version,
+                lead_id=lead_id,
+                max_tokens=max_tokens,
+            )
+        finally:
+            self.model = original
