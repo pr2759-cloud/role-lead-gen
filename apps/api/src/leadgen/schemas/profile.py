@@ -37,6 +37,12 @@ class Profile(BaseModel):
     @classmethod
     def from_yaml(cls, path: str) -> "Profile":
         import yaml
-        with open(path) as f:
+        from pathlib import Path
+        p = Path(path)
+        if not p.is_absolute() and not p.exists():
+            # Try resolving relative to repo root (two levels up from this file's package)
+            repo_root = Path(__file__).resolve().parents[5]
+            p = repo_root / path
+        with open(p) as f:
             data = yaml.safe_load(f)
         return cls.model_validate(data)
