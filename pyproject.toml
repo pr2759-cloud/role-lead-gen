@@ -1,0 +1,47 @@
+[project]
+name = "leadgen"
+version = "0.1.0"
+description = "FDE/GTM outreach lead generation engine"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "sqlalchemy>=2.0",
+  "alembic>=1.13",
+  "psycopg[binary]>=3.2",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "anthropic>=0.40",
+  "typer>=0.13",
+  "rich>=13.9",
+  "structlog>=24.4",
+  "pyyaml>=6.0",
+  "httpx>=0.27",
+  "tenacity>=9.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pytest-mock>=3.14",
+  "ruff>=0.7",
+  "respx>=0.21",
+]
+
+[project.scripts]
+leadgen = "leadgen.cli.main:app"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+pythonpath = ["apps/api/src"]
+asyncio_mode = "auto"
