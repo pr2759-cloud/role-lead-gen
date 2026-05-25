@@ -1,0 +1,59 @@
+schema_version: 1
+
+candidate:
+  name: Pranay Rawat
+  current_role: MS student, Columbia (Management Science & Engineering)
+  background:
+    - "Solutions Engineer at Fotomateai — owned end-to-end onboarding and integrations for 10+ strategic partners across heterogeneous tech stacks"
+    - "Software Engineer at Amazon — shipped App Health Insights (real-time analytics for Appstore developers, projected $12M revenue)"
+    - "Built an agentic lead-gen system (Clay + Zapier + LLMs) that auto-disqualifies 40% of low-fit leads, compressing 4hr of prospecting to ~15min"
+    - "Founded AIMC Society at DTU — university's first AI/ML research community, 400+ members"
+  superpowers:
+    - "Ship end-to-end across messy integrations and ambiguous specs"
+    - "Productize customer pain into prioritized engineering requirements"
+    - "Comfortable in customer-facing technical roles (FDE, SE, GTM Eng)"
+    - "Strong SQL + Python + LLM orchestration"
+
+target_roles:
+  - "Forward Deployed Engineer"
+  - "Solutions Engineer"
+  - "GTM Engineer"
+  - "Applied AI Engineer (customer-facing)"
+  - "Customer Engineer"
+
+icp:
+  company_stage: ["seed", "series-a", "series-b", "series-c"]
+  must_be_hiring_for:
+    - "Forward Deployed Engineer"
+    - "GTM Engineer"
+    - "Solutions Engineer"
+    - "Applied AI Engineer"
+    - "Customer Engineer"
+  prefers:
+    - "AI-native product (LLM-powered or AI is core to value prop)"
+    - "B2B SaaS or developer tools"
+    - "Raised funding in the last 18 months"
+    - "Engineering culture (public engineering blog, design docs, PR reviews)"
+    - "US-based or US-remote eligible"
+  disqualifies:
+    - "Late-stage public companies (FAANG-tier)"
+    - "Pure ML research labs without shipping product"
+    - "Consultancies or staffing agencies"
+    - "Pre-product companies (no website / no customers)"
+
+tone:
+  voice: "warm, direct, technical, specific, low-pressure"
+  do:
+    - "Lead with a concrete observation about their product, recent move, or technical choice"
+    - "Reference one of my projects relevant to their work (be specific about what shipped or broke)"
+    - "End with a low-pressure ask (15 min chat, or async feedback on something I'm building)"
+    - "Keep it under 120 words total"
+  dont:
+    - "Generic compliments about culture, mission, or 'love what you're building'"
+    - "Self-promotion that reads like a resume bullet"
+    - "Buzzwords (synergy, leverage, ecosystem, journey, etc.)"
+    - "Mentioning AI when it's not specifically relevant"
+  example_lines:
+    - "Saw your team shipped the Slack integration last week — curious how you're handling rate limits at the scale you described in the launch post."
+    - "Built a Clay + Claude pipeline last month that does ~what your enrichment layer does; happy to share where it broke."
+    - "I'm a Columbia MSE student wrapping up in December, targeting FDE/GTM Eng roles. Would 15 min next week work to learn how you scope engagement work at <company>?"
