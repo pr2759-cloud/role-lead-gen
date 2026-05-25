@@ -1,0 +1,18 @@
+[
+  {
+    "company": "Decagon",
+    "icp_match": null,
+    "score": null,
+    "draft": null,
+    "cost_usd": 0.293682,
+    "error": "RetryError[<Future at 0x11a1eed70 state=finished raised RateLimitError>]"
+  },
+  {
+    "company": "Linear",
+    "icp_match": null,
+    "score": null,
+    "draft": null,
+    "cost_usd": 0.557289,
+    "error": "RetryError[<Future at 0x11a4b0750 state=finished raised RateLimitError>]"
+  }
+]

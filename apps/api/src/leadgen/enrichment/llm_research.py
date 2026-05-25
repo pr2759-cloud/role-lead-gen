@@ -7,6 +7,7 @@ recent posts or launches that could become outreach hooks.
 import time
 import anthropic
 from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from leadgen.config import settings
 from leadgen.observability.llm_metering import calculate_cost
 
@@ -42,6 +43,11 @@ class EnrichmentResult(BaseModel):
     latency_ms: int
 
 
+@retry(
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=2, min=30, max=90),
+    retry=retry_if_exception_type((anthropic.APIConnectionError, anthropic.RateLimitError)),
+)
 def research_company(*, name: str, domain: str | None = None) -> tuple[EnrichmentResult, dict]:
     """Run Claude with web_search to produce a company dossier."""
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)

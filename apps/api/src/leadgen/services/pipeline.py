@@ -19,6 +19,10 @@ from leadgen.reasoning.personalizer import draft_opener
 from leadgen.enrichment.llm_research import research_company
 from leadgen.repositories.lead_repo import LeadRepo
 
+# Dossier is truncated before passing to reasoning steps to stay within rate limits.
+# Full dossier is stored in DB; truncated version is only used for LLM calls.
+DOSSIER_TOKEN_BUDGET = 1200  # ~chars, rough estimate
+
 log = structlog.get_logger()
 
 
@@ -47,17 +51,22 @@ class Pipeline:
         total_cost = 0.0
 
         try:
-            # Stage 1: enrich
+            # Stage 1: enrich — commit immediately so enrichment is never lost on retry
             enrichment, research_interaction = research_company(name=name, domain=domain)
             research_interaction["lead_id"] = lead.id
             self.repo.save_interaction(research_interaction)
             self.repo.update_enrichment(company, enrichment.dossier)
             self.repo.update_state(lead, LifecycleState.ENRICHED)
             total_cost += enrichment.cost_usd
+            self.db.commit()
+
+            # Truncate dossier for reasoning LLM calls to stay within rate limits.
+            # Full dossier is already persisted in DB via update_enrichment above.
+            dossier_for_llm = enrichment.dossier[:4800]
 
             # Stage 2: ICP match
             icp_result, icp_interaction = match_icp(
-                profile=self.profile, company_dossier=enrichment.dossier, llm=self.llm, lead_id=lead.id,
+                profile=self.profile, company_dossier=dossier_for_llm, llm=self.llm, lead_id=lead.id,
             )
             self.repo.save_interaction(icp_interaction)
             self.repo.update_icp_match(lead, icp_result.model_dump(mode="json"))
@@ -72,7 +81,7 @@ class Pipeline:
             # Stage 3: score
             score, score_interaction = score_lead(
                 profile=self.profile,
-                company_dossier=enrichment.dossier,
+                company_dossier=dossier_for_llm,
                 icp_match=icp_result,
                 llm=self.llm,
                 lead_id=lead.id,
@@ -84,7 +93,7 @@ class Pipeline:
 
             # Stage 4: draft
             draft, draft_interaction = draft_opener(
-                profile=self.profile, company_dossier=enrichment.dossier, llm=self.llm, lead_id=lead.id,
+                profile=self.profile, company_dossier=dossier_for_llm, llm=self.llm, lead_id=lead.id,
             )
             self.repo.save_interaction(draft_interaction)
             self.repo.update_state(lead, LifecycleState.AWAITING_REVIEW)

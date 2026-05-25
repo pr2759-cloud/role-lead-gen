@@ -1,0 +1,18 @@
+[
+  {
+    "company": "Decagon",
+    "icp_match": null,
+    "score": null,
+    "draft": null,
+    "cost_usd": 0.289359,
+    "error": "RetryError[<Future at 0x10557c050 state=finished raised RateLimitError>]"
+  },
+  {
+    "company": "Linear",
+    "icp_match": null,
+    "score": null,
+    "draft": null,
+    "cost_usd": 0.0,
+    "error": "Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': \"This request would exceed your organization's rate limit of 30,000 input tokens per minute (org: b1910762-e2fe-4b06-9442-f9041a2ff5ab, model: claude-sonnet-4-6). For details, refer to: https://docs.claude.com/en/api/rate-limits. You can see the response headers for current usage. Reduce the prompt length or the maximum tokens requested, or try again later. View your current limits at https://console.anthropic.com/settings/limits. To raise this limit, purchase credits to advance to the next usage tier at https://console.anthropic.com/settings/billing.\"}, 'request_id': 'req_011CbPfv4S6nLrbWAgPKtAsE'}"
+  }
+]
